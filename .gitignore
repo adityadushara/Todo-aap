@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Expo / build
+.expo/
+dist/
+web-build/
+
+# Environment configurations
+.env
+.env*.local
+
+# Supabase temp state
+be/supabase/.temp/
