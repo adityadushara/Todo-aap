@@ -8,6 +8,7 @@ import { Mail, Lock, User, Eye, EyeOff, UserPlus } from "lucide-react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import Svg, { Path } from "react-native-svg";
+import { colors } from "../../src/theme";
 
 function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
@@ -65,88 +66,90 @@ export default function SignUpScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 bg-background">
-      <ScrollView contentContainerClassName="flex-1 justify-center p-8" keyboardShouldPersistTaps="handled">
-        <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-10">
-          <Text className="text-3xl font-bold text-text">Create account</Text>
-          <Text className="text-base text-text-secondary mt-2">Start organizing your tasks</Text>
-        </Animated.View>
+      <ScrollView contentContainerClassName="flex-1 justify-center items-center p-6" keyboardShouldPersistTaps="handled">
+        <View className="w-full max-w-md bg-surface p-8 rounded-3xl border border-border/80 shadow-xl shadow-slate-900/5">
+          <Animated.View entering={FadeInDown.delay(100).springify()} className="mb-8 items-center">
+            <Text className="text-3xl font-extrabold text-text tracking-tight text-center">Create account</Text>
+            <Text className="text-sm font-medium text-text-secondary mt-1 text-center">Start organizing your tasks with TaskFlow</Text>
+          </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(200).springify()} className="gap-5">
-          {error ? (
-            <View className="p-4 rounded-xl bg-error/10 border border-error/30">
-              <Text className="text-sm font-medium text-error">{error}</Text>
+          <Animated.View entering={FadeInDown.delay(200).springify()} className="gap-4">
+            {error ? (
+              <View className="p-4 rounded-2xl bg-error/10 border border-error/20">
+                <Text className="text-sm font-semibold text-error">{error}</Text>
+              </View>
+            ) : null}
+            
+            <Input 
+              label="Display Name" 
+              placeholder="Alex Morgan" 
+              value={displayName} 
+              onChangeText={setDisplayName}
+              leftIcon={<User size={18} color="#94A3B8" />} 
+            />
+            
+            <Input 
+              label="Email Address" 
+              placeholder="you@example.com" 
+              value={email} 
+              onChangeText={setEmail}
+              keyboardType="email-address" 
+              autoCapitalize="none"
+              leftIcon={<Mail size={18} color="#94A3B8" />} 
+            />
+            
+            <Input 
+              label="Password" 
+              placeholder="At least 6 characters" 
+              value={password} 
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              leftIcon={<Lock size={18} color="#94A3B8" />}
+              rightIcon={showPassword ? <EyeOff size={18} color="#94A3B8" /> : <Eye size={18} color="#94A3B8" />}
+              onRightIconPress={() => setShowPassword(!showPassword)} 
+            />
+            
+            <Input 
+              label="Confirm Password" 
+              placeholder="Repeat your password" 
+              value={confirmPassword} 
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showPassword}
+              leftIcon={<Lock size={18} color="#94A3B8" />} 
+            />
+            
+            <Button 
+              label="Create Account" 
+              onPress={handleSignUp} 
+              isLoading={isLoading === "email"} 
+              disabled={isPending} 
+              leftIcon={<UserPlus size={18} color="#fff" />} 
+              className="mt-2"
+            />
+
+            <View className="flex-row items-center gap-4 my-2">
+              <View className="flex-1 h-px bg-border" />
+              <Text className="text-xs font-semibold text-text-secondary">or continue with</Text>
+              <View className="flex-1 h-px bg-border" />
             </View>
-          ) : null}
-          
-          <Input 
-            label="Display Name" 
-            placeholder="John Doe" 
-            value={displayName} 
-            onChangeText={setDisplayName}
-            leftIcon={<User size={18} color="#94A3B8" />} 
-          />
-          
-          <Input 
-            label="Email" 
-            placeholder="you@example.com" 
-            value={email} 
-            onChangeText={setEmail}
-            keyboardType="email-address" 
-            autoCapitalize="none"
-            leftIcon={<Mail size={18} color="#94A3B8" />} 
-          />
-          
-          <Input 
-            label="Password" 
-            placeholder="At least 6 characters" 
-            value={password} 
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            leftIcon={<Lock size={18} color="#94A3B8" />}
-            rightIcon={showPassword ? <EyeOff size={18} color="#94A3B8" /> : <Eye size={18} color="#94A3B8" />}
-            onRightIconPress={() => setShowPassword(!showPassword)} 
-          />
-          
-          <Input 
-            label="Confirm Password" 
-            placeholder="Repeat your password" 
-            value={confirmPassword} 
-            onChangeText={setConfirmPassword}
-            secureTextEntry={!showPassword}
-            leftIcon={<Lock size={18} color="#94A3B8" />} 
-          />
-          
-          <Button 
-            label="Create Account" 
-            onPress={handleSignUp} 
-            isLoading={isLoading === "email"} 
-            disabled={isPending} 
-            leftIcon={<UserPlus size={18} color="#fff" />} 
-            className="mt-4"
-          />
 
-          <View className="flex-row items-center gap-4 my-2">
-            <View className="flex-1 h-px bg-border" />
-            <Text className="text-xs text-text-secondary">or continue with</Text>
-            <View className="flex-1 h-px bg-border" />
-          </View>
+            <Button
+              label="Continue with Google"
+              onPress={handleGoogleSignIn}
+              variant="outline"
+              disabled={isPending}
+              isLoading={isLoading === "google"}
+              leftIcon={<GoogleIcon size={18} />}
+            />
+          </Animated.View>
 
-          <Button
-            label="Continue with Google"
-            onPress={handleGoogleSignIn}
-            variant="outline"
-            disabled={isPending}
-            isLoading={isLoading === "google"}
-            leftIcon={<GoogleIcon size={18} />}
-          />
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(400).springify()} className="flex-row justify-center mt-12">
-          <Text className="text-base text-text-secondary">Already have an account? </Text>
-          <Link href="/(auth)/sign-in" asChild>
-            <Text className="text-base font-semibold text-primary">Sign In</Text>
-          </Link>
-        </Animated.View>
+          <Animated.View entering={FadeInDown.delay(400).springify()} className="flex-row justify-center mt-8 pt-4 border-t border-border/60">
+            <Text className="text-sm font-medium text-text-secondary">Already have an account? </Text>
+            <Link href="/(auth)/sign-in" asChild>
+              <Text className="text-sm font-bold text-primary" style={{ color: colors.primary }}>Sign In</Text>
+            </Link>
+          </Animated.View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

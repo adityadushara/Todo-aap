@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, Pressable, PressableProps, ActivityIndicator } from 'react-native';
+import { Text, Pressable, PressableProps, ActivityIndicator, Platform, StyleProp, ViewStyle } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { colors } from '../../theme';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -17,6 +18,7 @@ export interface ButtonProps extends PressableProps {
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  className?: string;
 }
 
 export function Button({
@@ -31,6 +33,7 @@ export function Button({
   onPressOut,
   onPress,
   className = '',
+  style,
   ...props
 }: ButtonProps) {
   const scale = useSharedValue(1);
@@ -38,15 +41,17 @@ export function Button({
 
   const handlePressIn = (e: any) => {
     if (!disabled && !isLoading) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      scale.value = withSpring(0.96, { damping: 15, stiffness: 300 });
-      opacity.value = withTiming(0.8, { duration: 150 });
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+      scale.value = withSpring(0.97, { damping: 15, stiffness: 350 });
+      opacity.value = withTiming(0.9, { duration: 150 });
     }
     onPressIn?.(e);
   };
 
   const handlePressOut = (e: any) => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+    scale.value = withSpring(1, { damping: 15, stiffness: 350 });
     opacity.value = withTiming(1, { duration: 150 });
     onPressOut?.(e);
   };
@@ -62,57 +67,57 @@ export function Button({
     opacity: disabled ? 0.5 : opacity.value,
   }));
 
-  const getVariantStyles = () => {
+  const getVariantNativeStyles = (): ViewStyle => {
     switch (variant) {
       case 'primary':
-        return 'bg-primary border border-transparent';
+        return { backgroundColor: colors.primary, borderColor: 'transparent' };
       case 'secondary':
-        return 'bg-text border border-transparent';
+        return { backgroundColor: colors.text, borderColor: 'transparent' };
       case 'outline':
-        return 'bg-transparent border border-border';
+        return { backgroundColor: 'transparent', borderColor: colors.border, borderWidth: 1 };
       case 'ghost':
-        return 'bg-transparent border border-transparent';
+        return { backgroundColor: 'transparent', borderColor: 'transparent' };
       default:
-        return 'bg-primary border border-transparent';
+        return { backgroundColor: colors.primary, borderColor: 'transparent' };
     }
   };
 
-  const getTextStyles = () => {
+  const getTextColor = (): string => {
     switch (variant) {
       case 'primary':
       case 'secondary':
-        return 'text-surface';
+        return '#FFFFFF';
       case 'outline':
       case 'ghost':
-        return 'text-text';
+        return colors.text;
       default:
-        return 'text-surface';
+        return '#FFFFFF';
     }
   };
 
   const getSizeStyles = () => {
     switch (size) {
       case 'sm':
-        return 'h-10 px-4 rounded-sm';
+        return 'h-10 px-4 rounded-xl';
       case 'md':
-        return 'h-12 px-6 rounded-md';
+        return 'h-12 px-6 rounded-2xl';
       case 'lg':
-        return 'h-14 px-8 rounded-lg';
+        return 'h-14 px-8 rounded-2xl';
       default:
-        return 'h-12 px-6 rounded-md';
+        return 'h-12 px-6 rounded-2xl';
     }
   };
 
   const getTextSizeStyles = () => {
     switch (size) {
       case 'sm':
-        return 'text-sm font-medium';
+        return 'text-sm font-semibold';
       case 'md':
-        return 'text-base font-semibold';
+        return 'text-base font-bold';
       case 'lg':
         return 'text-lg font-bold';
       default:
-        return 'text-base font-semibold';
+        return 'text-base font-bold';
     }
   };
 
@@ -122,19 +127,27 @@ export function Button({
       onPressOut={handlePressOut}
       onPress={handlePress}
       disabled={disabled || isLoading}
-      style={animatedStyle}
-      className={`flex-row items-center justify-center ${getVariantStyles()} ${getSizeStyles()} ${className}`}
+      style={[
+        getVariantNativeStyles(),
+        { cursor: disabled || isLoading ? 'default' : 'pointer' } as any,
+        style as StyleProp<ViewStyle>,
+        animatedStyle,
+      ]}
+      className={`flex-row items-center justify-center ${getSizeStyles()} ${className}`}
       {...props}
     >
       {isLoading ? (
-        <ActivityIndicator color={variant === 'primary' || variant === 'secondary' ? '#FFFFFF' : '#6366F1'} size="small" />
+        <ActivityIndicator color={getTextColor()} size="small" />
       ) : (
         <>
-          {leftIcon && <Animated.View className="mr-2">{leftIcon}</Animated.View>}
-          <Text className={`${getTextStyles()} ${getTextSizeStyles()} text-center`}>
+          {leftIcon && <Animated.View className="mr-2.5 flex-row items-center justify-center">{leftIcon}</Animated.View>}
+          <Text
+            style={{ color: getTextColor() }}
+            className={`${getTextSizeStyles()} text-center tracking-tight`}
+          >
             {label}
           </Text>
-          {rightIcon && <Animated.View className="ml-2">{rightIcon}</Animated.View>}
+          {rightIcon && <Animated.View className="ml-2.5 flex-row items-center justify-center">{rightIcon}</Animated.View>}
         </>
       )}
     </AnimatedPressable>

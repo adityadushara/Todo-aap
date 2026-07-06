@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert, Platform } from "react-native";
 import { useAuthStore } from "../../src/store/auth-store";
 import { useNotificationStore } from "../../src/store/notification-store";
 import { exportToJSON, exportBackupCSV } from "../../src/lib/export-data";
@@ -9,6 +9,8 @@ import { ToggleSwitch } from "../../src/components/ui/ToggleSwitch";
 import { ExportDataSheet } from "../../src/components/ui/ExportDataSheet";
 import { Bell, BellOff, LogOut, Trash2, ShieldCheck, ChevronRight, FileDown, CalendarClock, Flame } from "lucide-react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { colors } from "../../src/theme";
+import { router } from "expo-router";
 
 export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
@@ -40,27 +42,45 @@ export default function SettingsScreen() {
     } catch (err) {
       const msg = (err as Error).message || "Could not update notification setting.";
       const title = msg.toLowerCase().includes("permission") ? "Permission Denied" : "Error";
-      Alert.alert(title, msg);
+      if (Platform.OS === 'web') {
+        window.alert(`${title}: ${msg}`);
+      } else {
+        Alert.alert(title, msg);
+      }
     }
     setLoading(false);
   };
 
-  const handleSignOut = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign Out", style: "destructive", onPress: () => signOut() },
-    ]);
+  const handleSignOut = async () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm("Are you sure you want to sign out?")) {
+        await signOut();
+        router.replace("/(auth)/sign-in");
+      }
+    } else {
+      Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign Out", style: "destructive", onPress: async () => { await signOut(); router.replace("/(auth)/sign-in"); } },
+      ]);
+    }
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "This action cannot be undone. All your data will be permanently deleted from our servers.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => deleteAccount?.() },
-      ],
-    );
+  const handleDeleteAccount = async () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm("This action cannot be undone. All your data will be permanently deleted. Continue?")) {
+        await deleteAccount?.();
+        router.replace("/(auth)/sign-in");
+      }
+    } else {
+      Alert.alert(
+        "Delete Account",
+        "This action cannot be undone. All your data will be permanently deleted from our servers.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Delete", style: "destructive", onPress: async () => { await deleteAccount?.(); router.replace("/(auth)/sign-in"); } },
+        ],
+      );
+    }
   };
 
   const handleExportData = () => {
@@ -80,147 +100,151 @@ export default function SettingsScreen() {
   const streakEnabled = settings?.streak_reminder_enabled ?? false;
 
   return (
-    <View className="flex-1 bg-background">
-      <View className="pt-20 px-6 pb-4 border-b border-border bg-surface">
-        <Text className="text-4xl font-bold text-text tracking-tight">Settings</Text>
-      </View>
-
-      <ScrollView
-        className="flex-1 px-6"
-        contentContainerClassName="pb-40 pt-6"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* PROFILE CARD */}
-        <Animated.View entering={FadeInDown.delay(100).springify()}>
-          <Card className="flex-row items-center gap-4">
-            <Avatar name={user?.display_name || "User"} size={56} />
-            <View className="flex-1">
-              <Text className="text-xl font-bold text-text">{user?.display_name || "User"}</Text>
-              <Text className="text-sm text-text-secondary">@{user?.display_name?.toLowerCase().replace(/\s+/g, "") || "user"}</Text>
-            </View>
-            <View className="w-9 h-9 rounded-xl bg-background items-center justify-center">
-              <ChevronRight size={16} color="#94A3B8" />
-            </View>
-          </Card>
-        </Animated.View>
-
-        {/* NOTIFICATIONS */}
-        <Animated.View entering={FadeInDown.delay(150).springify()} className="mt-8">
-          <Text className="text-[11px] font-bold tracking-widest text-text-tertiary mb-2 ml-1">NOTIFICATIONS</Text>
-          <Card className="p-0 overflow-hidden">
-            {[
-              {
-                icon: settings?.push_enabled ? Bell : BellOff,
-                label: "Push Notifications",
-                desc: "Receive task reminders and alerts",
-                loading: togglingPush,
-                enabled: pushEnabled,
-                onToggle: (v: boolean) => handleToggle(togglePush, v, setTogglingPush),
-              },
-              {
-                icon: CalendarClock,
-                label: "Daily Reminder",
-                desc: "Review your tasks every morning",
-                loading: togglingDaily,
-                enabled: dailyEnabled,
-                onToggle: (v: boolean) => handleToggle(toggleDailyReminder, v, setTogglingDaily),
-              },
-              {
-                icon: Flame,
-                label: "Streak Reminder",
-                desc: "Stay motivated, protect your streak",
-                loading: togglingStreak,
-                enabled: streakEnabled,
-                onToggle: (v: boolean) => handleToggle(toggleStreakReminder, v, setTogglingStreak),
-              },
-            ].map((item, i) => (
-              <View
-                key={i}
-                className={`flex-row items-center px-5 py-4 ${i < 2 ? "border-b border-border" : ""}`}
-              >
-                <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mr-4">
-                  <item.icon size={20} color={item.enabled ? "#6366F1" : "#94A3B8"} />
-                </View>
-                <Pressable
-                  onPress={() => { if (!item.loading) item.onToggle(!item.enabled); }}
-                  className="flex-1 gap-0.5"
-                >
-                  <Text className="text-base font-semibold text-text">{item.label}</Text>
-                  <Text className="text-xs text-text-secondary">{item.desc}</Text>
-                </Pressable>
-                <ToggleSwitch
-                  value={item.enabled}
-                  onValueChange={item.onToggle}
-                  loading={item.loading}
-                  accessibilityLabel={item.label}
-                />
-              </View>
-            ))}
-          </Card>
-        </Animated.View>
-
-        {/* DATA */}
-        <Animated.View entering={FadeInDown.delay(200).springify()} className="mt-8">
-          <Text className="text-[11px] font-bold tracking-widest text-text-tertiary mb-2 ml-1">DATA</Text>
-          <Card className="p-0 overflow-hidden">
-            <Pressable
-              onPress={handleExportData}
-              className="flex-row items-center px-5 py-4 active:opacity-80"
-            >
-              <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mr-4">
-                <FileDown size={20} color="#6366F1" />
-              </View>
-              <View className="flex-1 gap-0.5">
-                <Text className="text-base font-semibold text-text">Export Data</Text>
-                <Text className="text-xs text-text-secondary">Download your tasks, categories, and stats</Text>
-              </View>
-              <ChevronRight size={16} color="#94A3B8" />
-            </Pressable>
-          </Card>
-        </Animated.View>
-
-        <ExportDataSheet
-          visible={showExport}
-          onClose={() => setShowExport(false)}
-          onExport={handleExportFormat}
-        />
-
-        {/* ACCOUNT */}
-        <Animated.View entering={FadeInDown.delay(250).springify()} className="mt-8">
-          <Text className="text-[11px] font-bold tracking-widest text-text-tertiary mb-2 ml-1">ACCOUNT</Text>
-          <Card className="p-0 overflow-hidden">
-            <Pressable
-              onPress={handleSignOut}
-              className="flex-row items-center px-5 py-4 active:opacity-80 border-b border-border"
-            >
-              <View className="w-10 h-10 rounded-xl bg-error/10 items-center justify-center mr-4">
-                <LogOut size={20} color="#EF4444" />
-              </View>
-              <Text className="text-base font-semibold text-error flex-1">Sign Out</Text>
-              <ChevronRight size={16} color="#EF4444" />
-            </Pressable>
-            
-            <Pressable
-              onPress={handleDeleteAccount}
-              className="flex-row items-center px-5 py-4 active:opacity-80"
-            >
-              <View className="w-10 h-10 rounded-xl bg-error/10 items-center justify-center mr-4">
-                <Trash2 size={20} color="#EF4444" />
-              </View>
-              <Text className="text-base font-semibold text-error flex-1">Delete Account</Text>
-              <ChevronRight size={16} color="#EF4444" />
-            </Pressable>
-          </Card>
-        </Animated.View>
-
-        {/* FOOTER */}
-        <View className="items-center py-12 gap-2">
-          <ShieldCheck size={16} color="#94A3B8" />
-          <Text className="text-xs text-text-secondary text-center">
-            Your data is synced and secured{"\n"}with end-to-end encryption.
-          </Text>
+    <View className="flex-1 bg-background items-center">
+      <View className="w-full max-w-4xl flex-1">
+        {/* HEADER */}
+        <View className="pt-16 px-6 pb-5 border-b border-border/80 bg-surface shadow-sm">
+          <Text className="text-4xl font-extrabold text-text tracking-tight">Settings</Text>
+          <Text className="text-sm font-semibold text-text-secondary mt-1">Manage preferences, notifications & account</Text>
         </View>
-      </ScrollView>
+
+        <ScrollView
+          className="flex-1 px-6"
+          contentContainerClassName="pb-36 pt-6"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* PROFILE CARD */}
+          <Animated.View entering={FadeInDown.delay(100).springify()}>
+            <Card className="flex-row items-center gap-4 p-5 border border-border/80 shadow-md">
+              <Avatar name={user?.display_name || "Alex Morgan"} size={56} />
+              <View className="flex-1">
+                <Text className="text-xl font-bold text-text tracking-tight">{user?.display_name || "Alex Morgan"}</Text>
+                <Text className="text-sm font-medium text-text-secondary mt-0.5">@{user?.display_name?.toLowerCase().replace(/\s+/g, "") || "alexmorgan"}</Text>
+              </View>
+              <View className="w-10 h-10 rounded-xl bg-background border border-border/60 items-center justify-center">
+                <ChevronRight size={18} color="#94A3B8" />
+              </View>
+            </Card>
+          </Animated.View>
+
+          {/* NOTIFICATIONS */}
+          <Animated.View entering={FadeInDown.delay(150).springify()} className="mt-8">
+            <Text className="text-[11px] font-bold tracking-widest text-text-tertiary mb-2 ml-1">NOTIFICATIONS & ALERTS</Text>
+            <Card className="p-0 overflow-hidden border border-border/80 shadow-sm">
+              {[
+                {
+                  icon: settings?.push_enabled ? Bell : BellOff,
+                  label: "Push Notifications",
+                  desc: "Receive task reminders and completion alerts",
+                  loading: togglingPush,
+                  enabled: pushEnabled,
+                  onToggle: (v: boolean) => handleToggle(togglePush, v, setTogglingPush),
+                },
+                {
+                  icon: CalendarClock,
+                  label: "Daily Reminder",
+                  desc: "Review your task schedule every morning",
+                  loading: togglingDaily,
+                  enabled: dailyEnabled,
+                  onToggle: (v: boolean) => handleToggle(toggleDailyReminder, v, setTogglingDaily),
+                },
+                {
+                  icon: Flame,
+                  label: "Streak Protection",
+                  desc: "Stay motivated and protect your daily streak",
+                  loading: togglingStreak,
+                  enabled: streakEnabled,
+                  onToggle: (v: boolean) => handleToggle(toggleStreakReminder, v, setTogglingStreak),
+                },
+              ].map((item, i) => (
+                <View
+                  key={i}
+                  className={`flex-row items-center px-5 py-4.5 ${i < 2 ? "border-b border-border/60" : ""}`}
+                >
+                  <View className="w-11 h-11 rounded-2xl bg-primary/10 items-center justify-center mr-4">
+                    <item.icon size={20} color={item.enabled ? colors.primary : "#94A3B8"} />
+                  </View>
+                  <Pressable
+                    onPress={() => { if (!item.loading) item.onToggle(!item.enabled); }}
+                    className="flex-1 gap-0.5"
+                  >
+                    <Text className="text-base font-bold text-text tracking-tight">{item.label}</Text>
+                    <Text className="text-xs font-medium text-text-secondary">{item.desc}</Text>
+                  </Pressable>
+                  <ToggleSwitch
+                    value={item.enabled}
+                    onValueChange={item.onToggle}
+                    loading={item.loading}
+                    accessibilityLabel={item.label}
+                  />
+                </View>
+              ))}
+            </Card>
+          </Animated.View>
+
+          {/* DATA & BACKUP */}
+          <Animated.View entering={FadeInDown.delay(200).springify()} className="mt-8">
+            <Text className="text-[11px] font-bold tracking-widest text-text-tertiary mb-2 ml-1">DATA & BACKUP</Text>
+            <Card className="p-0 overflow-hidden border border-border/80 shadow-sm">
+              <Pressable
+                onPress={handleExportData}
+                className="flex-row items-center px-5 py-4.5 active:opacity-80"
+              >
+                <View className="w-11 h-11 rounded-2xl bg-primary/10 items-center justify-center mr-4">
+                  <FileDown size={20} color={colors.primary} />
+                </View>
+                <View className="flex-1 gap-0.5">
+                  <Text className="text-base font-bold text-text tracking-tight">Export Task Data</Text>
+                  <Text className="text-xs font-medium text-text-secondary">Download tasks, subtasks, categories, and CSV backup</Text>
+                </View>
+                <ChevronRight size={18} color="#94A3B8" />
+              </Pressable>
+            </Card>
+          </Animated.View>
+
+          <ExportDataSheet
+            visible={showExport}
+            onClose={() => setShowExport(false)}
+            onExport={handleExportFormat}
+          />
+
+          {/* ACCOUNT & SECURITY */}
+          <Animated.View entering={FadeInDown.delay(250).springify()} className="mt-8">
+            <Text className="text-[11px] font-bold tracking-widest text-text-tertiary mb-2 ml-1">ACCOUNT ACTIONS</Text>
+            <Card className="p-0 overflow-hidden border border-border/80 shadow-sm">
+              <Pressable
+                onPress={handleSignOut}
+                className="flex-row items-center px-5 py-4.5 active:opacity-80 border-b border-border/60"
+              >
+                <View className="w-11 h-11 rounded-2xl bg-error/10 items-center justify-center mr-4">
+                  <LogOut size={20} color={colors.danger} />
+                </View>
+                <Text className="text-base font-bold text-error flex-1 tracking-tight">Sign Out</Text>
+                <ChevronRight size={18} color={colors.danger} />
+              </Pressable>
+              
+              <Pressable
+                onPress={handleDeleteAccount}
+                className="flex-row items-center px-5 py-4.5 active:opacity-80"
+              >
+                <View className="w-11 h-11 rounded-2xl bg-error/10 items-center justify-center mr-4">
+                  <Trash2 size={20} color={colors.danger} />
+                </View>
+                <Text className="text-base font-bold text-error flex-1 tracking-tight">Delete Account</Text>
+                <ChevronRight size={18} color={colors.danger} />
+              </Pressable>
+            </Card>
+          </Animated.View>
+
+          {/* FOOTER */}
+          <View className="items-center py-10 gap-2">
+            <ShieldCheck size={18} color="#94A3B8" />
+            <Text className="text-xs font-semibold text-text-secondary text-center leading-relaxed">
+              TaskFlow v1.0.0 • Encrypted Sync{"\n"}All personal data safely encrypted.
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
     </View>
   );
 }
